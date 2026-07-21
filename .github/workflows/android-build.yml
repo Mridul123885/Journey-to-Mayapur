@@ -25,12 +25,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install Capacitor Android
-        run: npm install @capacitor/android@latest
-
-      - name: Create Android project
+      - name: Add Android Platform
         run: |
-          npx cap add android
+          npx cap add android || true
           npx cap sync android
 
       - name: Setup Android SDK
@@ -42,7 +39,7 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease bundleRelease
 
-      - name: Find build files
+      - name: Show build outputs
         run: |
           find android -name "*.apk"
           find android -name "*.aab"
