@@ -1,0 +1,18 @@
+{
+  "appId": "com.madhubansevokdas.journeytomayapur",
+  "appName": "Journey to Mayapur",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "buildOptions": {
+      "keystorePath": "release.keystore",
+      "keystoreAlias": "journeykey"
+    }
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#D4A857"
+    }
+  }
+}
