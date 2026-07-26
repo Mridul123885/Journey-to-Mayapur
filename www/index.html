@@ -115,6 +115,13 @@ svg#ring{ position:absolute; inset:0; width:100%; height:100%; overflow:visible;
 .gs-card .gs-sub{ font-size:10.5px; color:var(--lavender); margin-top:2px; }
 .gs2-char-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin:14px 0; }
 .gs2-char-card{ background:rgba(255,255,255,.04); border:2px solid rgba(243,233,216,.14); border-radius:16px; padding:12px; text-align:center; cursor:pointer; }
+.mp-stage-card{ position:relative; border-radius:18px; overflow:hidden; cursor:pointer; height:132px; box-shadow:0 10px 24px -8px rgba(0,0,0,.55); border:2px solid rgba(212,168,87,.35); background:#1a1428; }
+.mp-stage-card.locked{ filter:grayscale(.6) brightness(.55); cursor:default; }
+.mp-stage-card img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 35%; }
+.mp-stage-card .mp-stage-overlay{ position:absolute; inset:0; background:linear-gradient(180deg, rgba(20,16,31,0) 40%, rgba(20,16,31,.92) 100%); display:flex; flex-direction:column; justify-content:flex-end; padding:10px 12px; }
+.mp-stage-card .mp-stage-name{ font-family:'Cormorant Garamond',serif; font-size:14px; color:var(--cream); line-height:1.2; }
+.mp-stage-card .mp-stage-stars{ font-size:11px; color:var(--gold-bright); margin-top:2px; }
+.mp-stage-card .mp-lock-badge{ position:absolute; top:8px; right:10px; font-size:16px; }
 .gs2-char-card.active{ border-color:var(--gold-bright); box-shadow:0 0 20px -6px rgba(212,168,87,.5); }
 .gs2-char-card img{ height:110px; object-fit:contain; }
 .gs2-char-card .gs2-cname{ font-family:'Cormorant Garamond',serif; font-size:14px; margin-top:6px; color:var(--cream); }
@@ -2557,16 +2564,18 @@ const MP_STORY_PANELS = [
   { img: MP+'story/panel_6.png', text: "They became pure devotees and spent their lives chanting Hare Krishna and serving others." }
 ];
 const MP_LEVELS = [
-  { id:0, title:"The Peaceful Streets of Nabadwip", bg:'nabadwip_streets', objective:"Collect offerings",
-    items:[{emoji:'🪷',pts:1},{emoji:'🌿',pts:1}], obstacles:['🪨','🪵'], obstacleChance:0.12, target:16, spawnEvery:1.3, fallSpeed:48, sway:true },
-  { id:1, title:"Meeting Jagai and Madhai", bg:'market', objective:"Collect Tulasi & flowers",
-    items:[{emoji:'🌿',pts:1},{emoji:'💐',pts:2}], obstacles:['🏺','🪨'], obstacleChance:0.15, target:18, spawnEvery:1.2, fallSpeed:52, sway:true },
-  { id:2, title:"Lord Nityananda Approaches", bg:'riverside', objective:"Collect mercy hearts",
-    items:[{emoji:'❤️',pts:2},{emoji:'🪷',pts:1}], obstacles:['🪨','🛒'], obstacleChance:0.16, target:20, spawnEvery:1.15, fallSpeed:56, sway:true },
-  { id:3, title:"Mercy and Transformation", bg:'temple', objective:"Collect kartals & garlands",
-    items:[{emoji:'🔔',pts:2},{emoji:'💐',pts:2},{emoji:'⭐',pts:3}], obstacles:['🪵','🏺'], obstacleChance:0.17, target:22, spawnEvery:1.1, fallSpeed:60, sway:true },
-  { id:4, title:"Grand Sankirtan Celebration", bg:'temple2', objective:"Collect golden stars",
-    items:[{emoji:'⭐',pts:3},{emoji:'❤️',pts:2},{emoji:'🪷',pts:1}], obstacles:['🪨','🪵'], obstacleChance:0.18, target:26, spawnEvery:1.0, fallSpeed:64, sway:true }
+  { id:0, title:"The Peaceful Streets of Nabadwip", bg:'nabadwip_streets', type:'bubble', objective:"Match 3 or more",
+    colors:['🪷','🌸','🔔','💐','🍃'], gridW:6, gridH:7, target:600, movesCap:22 },
+  { id:1, title:"Meeting Jagai and Madhai", bg:'market', type:'runner', objective:"Survive the streets",
+    duration:70, items:[{emoji:'❤️',pts:2},{emoji:'🪷',pts:1}], obstacles:['🪨','🪵','🏺'], jumpTypes:['low'], slideTypes:['high'] },
+  { id:2, title:"Lord Nityananda Approaches", bg:'riverside', type:'checkpoint', objective:"Reach the temple",
+    checkpoints:4, items:[{emoji:'🌿',pts:1},{emoji:'💐',pts:2}], obstacles:['🪨','🛒','🏺'],
+    scenery:['riverside','market','temple','temple2'] },
+  { id:3, title:"Mercy and Transformation", bg:'temple', type:'bubble', objective:"Advanced match",
+    colors:['🪷','🌸','🔔','💐','🍃','⭐'], gridW:6, gridH:8, target:900, movesCap:26, rainbowChance:0.06 },
+  { id:4, title:"Infinite Sankirtan Journey", bg:'temple2', type:'endless', objective:"Run forever",
+    items:[{emoji:'❤️',pts:2},{emoji:'🪷',pts:1},{emoji:'⭐',pts:3},{emoji:'🔔',pts:2},{emoji:'🍃',pts:1}], obstacles:['🪨','🪵','🏺','🛒'],
+    scenery:['nabadwip_streets','temple','riverside','market','temple2','sunset','night'] }
 ];
 const MP_BADGES = [
   {id:'village_hero', name:'Village Hero', desc:'Complete Stage 1', img:MP+'badges/village_hero.png'},
@@ -2615,27 +2624,28 @@ async function openMahaprabhuHub(){
 }
 function renderMpStageGrid(){
   const grid = document.getElementById('mpStageGrid');
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = '1fr 1fr';
+  grid.style.gap = '12px';
   grid.innerHTML = MP_LEVELS.map((lv,i)=>{
     const unlocked = i <= mpProgress.unlocked;
     const stars = mpProgress.bestStars[i] || 0;
-    return `<div class="gs2-char-card ${unlocked?'':'locked'}" data-i="${i}" style="${unlocked?'':'opacity:.45;'}">
+    const statusLine = !unlocked ? 'Locked' : (lv.type==='endless' ? ('Best: '+(mpProgress.endlessBest||0)) : ('★'.repeat(stars)+'☆'.repeat(3-stars)));
+    return `<div class="mp-stage-card ${unlocked?'':'locked'}" data-i="${i}">
       <img src="${MP}backgrounds/${lv.bg}.png">
-      <div style="font-size:12px;margin-top:6px;">Stage ${i+1}: ${lv.title}</div>
-      <div style="font-size:11px;color:var(--gold-bright);">${unlocked ? '★'.repeat(stars)+'☆'.repeat(3-stars) : '🔒 Locked'}</div>
+      ${unlocked?'':'<div class="mp-lock-badge">🔒</div>'}
+      <div class="mp-stage-overlay">
+        <div class="mp-stage-name">Stage ${i+1}: ${lv.title}</div>
+        <div class="mp-stage-stars">${statusLine}</div>
+      </div>
     </div>`;
   }).join('');
-  grid.querySelectorAll('.gs2-char-card').forEach(card=>{
+  grid.querySelectorAll('.mp-stage-card').forEach(card=>{
     const i = +card.dataset.i;
     if(i <= mpProgress.unlocked) card.addEventListener('click', ()=>openMpStory(i));
   });
   const endlessCard = document.getElementById('mpEndlessCard');
-  if(mpProgress.unlocked >= MP_LEVELS.length){
-    endlessCard.style.display = 'block';
-    document.getElementById('mpEndlessBest').textContent = mpProgress.endlessBest || 0;
-    endlessCard.onclick = openMpEndless;
-  } else {
-    endlessCard.style.display = 'none';
-  }
+  if(endlessCard) endlessCard.style.display = 'none';
 }
 document.getElementById('mpHubBackBtn').addEventListener('click', ()=>{ mpStopMusic(); document.getElementById('mahaprabhuHub').classList.remove('active'); goTab('play'); });
 document.getElementById('mpAchievementsBtn').addEventListener('click', openMpAchievements);
@@ -2679,34 +2689,34 @@ function mpUpdateScoreBar(){
   document.getElementById('mpTargetText').textContent = mpTarget;
   document.getElementById('mpScoreFill').style.width = Math.min(100, mpScore/mpTarget*100)+'%';
 }
-function mpStartRun(isEndless){
+function mpStartRun(){
   document.getElementById('mahaprabhuGame').style.display = 'block';
   document.getElementById('mpPlayField').innerHTML = '';
   document.getElementById('mpActionRow').innerHTML = '';
-  document.getElementById('mpPlayerSprite').src = MP_CHARACTERS.devotee.idle;
+  document.getElementById('mpPlayerSprite').style.display = 'none';
   document.getElementById('mpTimer').textContent = '0';
   mpScore = 0; mpHadObstacleHit = false; mpStartTime = performance.now(); mpRunning = true;
-  const bgName = isEndless ? 'temple2' : mpCurLevel.bg;
-  document.getElementById('mpSceneFar').style.backgroundImage = `url('${MP}backgrounds/${bgName}.png')`;
-  document.getElementById('mpSceneNear').style.backgroundImage = `linear-gradient(180deg, rgba(20,16,31,0.1), rgba(20,16,31,0.6)), url('${MP}backgrounds/${bgName}.png')`;
   clearInterval(mpTimerInterval);
   mpTimerInterval = setInterval(()=>{ if(mpRunning) document.getElementById('mpTimer').textContent = Math.floor((performance.now()-mpStartTime)/1000); }, 1000);
   if(mpEngineCleanup) mpEngineCleanup();
-  if(isEndless){
-    document.getElementById('mpObjectiveLabel').textContent = 'Infinite Sankirtan Journey';
-    mpTarget = 999999; mpUpdateScoreBar();
-    mpEngineCleanup = mpRunFallEngine({ items:[{emoji:'🪷',pts:1},{emoji:'❤️',pts:2},{emoji:'⭐',pts:3},{emoji:'🔔',pts:2}], obstacles:['🪨','🪵','🏺','🛒'], obstacleChance:0.22, target:999999, spawnEvery:0.9, fallSpeed:60, sway:true, infinite:true }, mpCompleteEndless, mpFailStage);
-  } else {
-    document.getElementById('mpObjectiveLabel').textContent = mpCurLevel.objective;
-    mpEngineCleanup = mpRunFallEngine(mpCurLevel, mpCompleteStage, mpFailStage);
-  }
+  const lv = mpCurLevel;
+  document.getElementById('mpObjectiveLabel').textContent = lv.objective;
+  mpSetScene(lv.bg);
+  if(lv.type === 'bubble') mpEngineCleanup = mpRunBubbleEngine(lv, mpCompleteStage, mpFailStage);
+  else if(lv.type === 'runner') mpEngineCleanup = mpRunnerCore({ mode:'survive', duration:lv.duration, items:lv.items, obstacles:lv.obstacles, scenery:[lv.bg] }, mpCompleteStage, mpFailStage);
+  else if(lv.type === 'checkpoint') mpEngineCleanup = mpRunnerCore({ mode:'checkpoint', checkpoints:lv.checkpoints, items:lv.items, obstacles:lv.obstacles, scenery:lv.scenery }, mpCompleteStage, mpFailStage);
+  else if(lv.type === 'endless') openMpCharSelect();
+}
+function mpSetScene(bgName){
+  document.getElementById('mpSceneFar').style.backgroundImage = `url('${MP}backgrounds/${bgName}.png')`;
+  document.getElementById('mpSceneNear').style.backgroundImage = `linear-gradient(180deg, rgba(20,16,31,0.1), rgba(20,16,31,0.6)), url('${MP}backgrounds/${bgName}.png')`;
 }
 function mpFailStage(){
   mpRunning = false; clearInterval(mpTimerInterval);
   if(mpEngineCleanup) mpEngineCleanup();
   document.getElementById('mpLoseOverlay').classList.add('show');
 }
-document.getElementById('mpRetryBtn').addEventListener('click', ()=>{ document.getElementById('mpLoseOverlay').classList.remove('show'); mpStartRun(mpCurLevelIdx>=MP_LEVELS.length); });
+document.getElementById('mpRetryBtn').addEventListener('click', ()=>{ document.getElementById('mpLoseOverlay').classList.remove('show'); mpStartRun(); });
 document.getElementById('mpMuteBtn').addEventListener('click', (e)=>{ if(!mpMusicEl) return; mpMusicEl.muted = !mpMusicEl.muted; e.target.textContent = mpMusicEl.muted?'🔇':'🔊'; });
 document.getElementById('mpBackBtn').addEventListener('click', ()=>{
   mpRunning=false; clearInterval(mpTimerInterval);
@@ -2716,67 +2726,297 @@ document.getElementById('mpBackBtn').addEventListener('click', ()=>{
   openMahaprabhuHub();
 });
 
-/* ---- Falling-collectible engine (same proven approach used elsewhere: rAF motion,
-   pointerdown hit detection, a collected-guard flag, obstacles that end the run) ---- */
-function mpRunFallEngine(level, onDone, onFail){
-  mpTarget = level.target; mpUpdateScoreBar();
+/* =============== BUBBLE MATCH-3 ENGINE (Stages 1 & 4) =============== */
+function mpRunBubbleEngine(level, onDone, onFail){
   const field = document.getElementById('mpPlayField');
   field.innerHTML = '';
-  let items = [], spawnAcc = 0, lastT = performance.now(), raf = null, stopped = false;
+  mpTarget = level.target; mpScore = 0; mpUpdateScoreBar();
+  let movesLeft = level.movesCap;
+  document.getElementById('mpActionRow').innerHTML = `<div class="hud-box" id="mpMovesLeft" style="font-size:14px;">Moves: ${movesLeft}</div>`;
+  const gw = level.gridW, gh = level.gridH;
+  const colors = level.colors;
+  let grid = [];
+  for(let y=0;y<gh;y++){ grid.push([]); for(let x=0;x<gw;x++){ grid[y].push(colors[Math.floor(Math.random()*colors.length)]); } }
+  const boardEl = document.createElement('div');
+  boardEl.style.cssText = 'position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:grid;';
+  field.appendChild(boardEl);
+  let cellSize = 0, selected = null, busy = false, stopped = false;
+  function layout(){
+    const maxW = (field.clientWidth||320) * 0.92, maxH = (field.clientHeight||500) * 0.68;
+    cellSize = Math.floor(Math.min(maxW/gw, maxH/gh));
+    boardEl.style.gridTemplateColumns = `repeat(${gw}, ${cellSize}px)`;
+    boardEl.style.gridTemplateRows = `repeat(${gh}, ${cellSize}px)`;
+    boardEl.style.width = (cellSize*gw)+'px'; boardEl.style.height = (cellSize*gh)+'px';
+  }
+  layout();
+  function render(){
+    boardEl.innerHTML = '';
+    for(let y=0;y<gh;y++) for(let x=0;x<gw;x++){
+      const el = document.createElement('div');
+      el.textContent = grid[y][x] === 'rainbow' ? '✨' : grid[y][x];
+      el.dataset.x = x; el.dataset.y = y;
+      const isSel = selected && selected.x===x && selected.y===y;
+      el.style.cssText = `display:flex;align-items:center;justify-content:center;font-size:${Math.floor(cellSize*0.55)}px;cursor:pointer;border-radius:10px;transition:transform .15s;background:${isSel?'rgba(212,168,87,.35)':'rgba(255,255,255,.04)'};touch-action:none;`;
+      el.addEventListener('pointerdown', ()=>onCellTap(x,y));
+      boardEl.appendChild(el);
+    }
+  }
+  function findMatches(){
+    const toClear = new Set();
+    for(let y=0;y<gh;y++){
+      let runStart=0;
+      for(let x=1;x<=gw;x++){
+        const same = x<gw && grid[y][x]!=='rainbow' && grid[y][x]===grid[y][runStart] && grid[y][runStart]!=='rainbow';
+        if(!same){ if(x-runStart>=3){ for(let k=runStart;k<x;k++) toClear.add(y+'_'+k); } runStart=x; }
+      }
+    }
+    for(let x=0;x<gw;x++){
+      let runStart=0;
+      for(let y=1;y<=gh;y++){
+        const same = y<gh && grid[y][x]!=='rainbow' && grid[y][x]===grid[runStart][x] && grid[runStart][x]!=='rainbow';
+        if(!same){ if(y-runStart>=3){ for(let k=runStart;k<y;k++) toClear.add(k+'_'+x); } runStart=y; }
+      }
+    }
+    return toClear;
+  }
+  function clearAndCascade(cascadeDepth){
+    const matches = findMatches();
+    if(matches.size===0) return false;
+    const pts = matches.size * 10 * (1 + cascadeDepth*0.5);
+    mpScore += Math.round(pts); mpUpdateScoreBar();
+    const r = boardEl.getBoundingClientRect();
+    gsSpawnFloatText(r.left+r.width/2-20, r.top+r.height/2, (cascadeDepth>0?'Combo x'+(cascadeDepth+1)+' ':'')+'+'+Math.round(pts), '#F3CE7F');
+    mpPlayCollect(Math.min(10, matches.size));
+    matches.forEach(key=>{ const [y,x] = key.split('_').map(Number); grid[y][x] = null; });
+    for(let x=0;x<gw;x++){
+      let write = gh-1;
+      for(let y=gh-1;y>=0;y--){ if(grid[y][x]!==null){ grid[write][x]=grid[y][x]; if(write!==y) grid[y][x]=null; write--; } }
+      for(let y=write;y>=0;y--){ grid[y][x] = (Math.random()<(level.rainbowChance||0)) ? 'rainbow' : colors[Math.floor(Math.random()*colors.length)]; }
+    }
+    render();
+    return true;
+  }
+  function resolveCascades(){
+    busy = true;
+    let depth = 0;
+    function step(){
+      if(clearAndCascade(depth)){ depth++; setTimeout(step, 260); }
+      else {
+        busy = false;
+        if(mpScore >= mpTarget){ stopped=true; onDone(); return; }
+        if(movesLeft<=0){ stopped=true; onFail(); return; }
+      }
+    }
+    step();
+  }
+  function swap(x1,y1,x2,y2){
+    const tmp = grid[y1][x1]; grid[y1][x1]=grid[y2][x2]; grid[y2][x2]=tmp;
+  }
+  function onCellTap(x,y){
+    if(busy || stopped || !mpRunning) return;
+    if(!selected){ selected = {x,y}; render(); return; }
+    const dx = Math.abs(selected.x-x), dy = Math.abs(selected.y-y);
+    const adjacent = (dx+dy)===1;
+    if(!adjacent){ selected = {x,y}; render(); return; }
+    const isRainbowSwap = grid[selected.y][selected.x]==='rainbow' || grid[y][x]==='rainbow';
+    if(isRainbowSwap){
+      const targetColor = grid[selected.y][selected.x]==='rainbow' ? grid[y][x] : grid[selected.y][selected.x];
+      for(let yy=0;yy<gh;yy++) for(let xx=0;xx<gw;xx++){ if(grid[yy][xx]===targetColor) grid[yy][xx]=null; }
+      grid[selected.y][selected.x]=null; grid[y][x]=null;
+      selected = null;
+      for(let xx=0;xx<gw;xx++){
+        let write=gh-1;
+        for(let yy=gh-1;yy>=0;yy--){ if(grid[yy][xx]!==null){ grid[write][xx]=grid[yy][xx]; if(write!==yy) grid[yy][xx]=null; write--; } }
+        for(let yy=write;yy>=0;yy--){ grid[yy][xx] = colors[Math.floor(Math.random()*colors.length)]; }
+      }
+      mpScore += 80; mpUpdateScoreBar(); mpPlayCollect(8);
+      render();
+      movesLeft--; document.getElementById('mpMovesLeft').textContent = 'Moves: '+movesLeft;
+      resolveCascades();
+      return;
+    }
+    swap(selected.x, selected.y, x, y);
+    const willMatch = findMatches().size > 0;
+    if(!willMatch){ swap(selected.x, selected.y, x, y); selected = null; render(); return; }
+    selected = null; movesLeft--;
+    document.getElementById('mpMovesLeft').textContent = 'Moves: '+movesLeft;
+    render();
+    resolveCascades();
+  }
+  render();
+  const onResize = ()=>{ layout(); render(); };
+  window.addEventListener('resize', onResize);
+  return ()=>{ stopped=true; window.removeEventListener('resize', onResize); field.innerHTML=''; };
+}
+
+/* =============== LANE RUNNER CORE (Stages 2, 3, and 5) =============== */
+function mpRunnerCore(opts, onDone, onFail){
+  const field = document.getElementById('mpPlayField');
+  field.innerHTML = '';
+  const mode = opts.mode; // 'survive' | 'checkpoint' | 'infinite'
+  mpTarget = mode==='survive' ? opts.duration : mode==='checkpoint' ? opts.checkpoints : 999999;
+  mpScore = 0; mpUpdateScoreBar();
+
+  const charKey = opts.character || 'devotee';
+  const playerSrc = MP_RUNNER_SPRITES[charKey] || MP_CHARACTERS.devotee.idle;
+  const player = document.createElement('img');
+  player.src = playerSrc;
+  player.style.cssText = 'position:absolute;bottom:14%;height:120px;z-index:4;transition:left .16s ease, transform .18s ease;';
+  field.appendChild(player);
+
+  let lane = 1, jumping = false, sliding = false;
+  function laneX(l){ const w = field.clientWidth||window.innerWidth; return [w*0.16, w*0.5-45, w*0.84-90][l]; }
+  function positionPlayer(){
+    player.style.left = laneX(lane)+'px';
+    player.style.transform = jumping ? 'translateY(-46px)' : sliding ? 'scaleY(0.55) translateY(18px)' : 'none';
+  }
+  positionPlayer();
+
+  const ctrl = document.getElementById('mpActionRow');
+  ctrl.innerHTML = `<button class="ctrl-btn" id="mpRunLeft">◀</button><button class="ctrl-btn" id="mpRunJump">⬆</button><button class="ctrl-btn" id="mpRunSlide">⬇</button><button class="ctrl-btn" id="mpRunRight">▶</button>`;
+  document.getElementById('mpRunLeft').addEventListener('click', ()=>{ lane=Math.max(0,lane-1); positionPlayer(); });
+  document.getElementById('mpRunRight').addEventListener('click', ()=>{ lane=Math.min(2,lane+1); positionPlayer(); });
+  function doJump(){ if(jumping||sliding) return; jumping=true; positionPlayer(); setTimeout(()=>{ jumping=false; positionPlayer(); }, 480); }
+  function doSlide(){ if(jumping||sliding) return; sliding=true; positionPlayer(); setTimeout(()=>{ sliding=false; positionPlayer(); }, 480); }
+  document.getElementById('mpRunJump').addEventListener('click', doJump);
+  document.getElementById('mpRunSlide').addEventListener('click', doSlide);
+  let tsx=null, tsy=null;
+  field.addEventListener('touchstart', e=>{ tsx=e.touches[0].clientX; tsy=e.touches[0].clientY; }, {passive:true});
+  field.addEventListener('touchend', e=>{
+    if(tsx==null) return;
+    const dx = e.changedTouches[0].clientX-tsx, dy = e.changedTouches[0].clientY-tsy;
+    if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40){ if(dx>0) lane=Math.min(2,lane+1); else lane=Math.max(0,lane-1); positionPlayer(); }
+    else if(dy < -40) doJump();
+    else if(dy > 40) doSlide();
+    tsx=null;
+  }, {passive:true});
+
+  let items = [], elapsed = 0, spawnAcc = 0, stopped = false, raf = null, lastT = performance.now();
+  let checkpointsReached = 0, nextCheckpointAt = 12, bgIdx = 0, comboStreak = 0, lastComboT = 0;
+  const sceneryList = opts.scenery && opts.scenery.length ? opts.scenery : [mpCurLevel ? mpCurLevel.bg : 'nabadwip_streets'];
+
+  function difficulty(){
+    return { spawnEvery: Math.max(0.55, 1.15 - elapsed*0.01), speed: Math.min(300, 140 + elapsed*3), obstacleChance: Math.min(0.38, 0.20 + elapsed*0.004) };
+  }
   function spawnItem(){
-    const w = field.clientWidth || window.innerWidth;
-    const isObstacle = Math.random() < (level.obstacleChance||0);
+    const ph = difficulty();
+    const isObstacle = Math.random() < ph.obstacleChance;
+    const l = Math.floor(Math.random()*3);
+    const vertType = Math.random()<0.5 ? 'low' : 'high'; // low = jump over, high = slide under
     const el = document.createElement('div');
     el.className = 'gs-fall-item' + (isObstacle?' gs-fall-obstacle':'');
     let emoji, pts;
-    if(isObstacle){ emoji = level.obstacles[Math.floor(Math.random()*level.obstacles.length)]; pts = 0; }
-    else { const d = level.items[Math.floor(Math.random()*level.items.length)]; emoji = d.emoji; pts = d.pts; }
+    if(isObstacle){ emoji = (opts.obstacles||['🪨'])[Math.floor(Math.random()*(opts.obstacles||['🪨']).length)]; pts=0; }
+    else { const d=(opts.items||[{emoji:'🪷',pts:1}])[Math.floor(Math.random()*(opts.items||[{emoji:'🪷',pts:1}]).length)]; emoji=d.emoji; pts=d.pts; }
     el.textContent = emoji;
-    const baseX = 30 + Math.random()*Math.max(40, w-60);
-    const item = { el, baseX, y:-50, vy: level.fallSpeed*(0.85+Math.random()*0.3), phase: Math.random()*6.28, collected:false, obstacle:isObstacle, pts };
-    el.style.transform = `translate(${baseX}px, -50px)`;
+    el.style.transform = `translate(${laneX(l)}px, -50px)`;
+    if(isObstacle && vertType==='high') el.style.filter = 'drop-shadow(0 -18px 0 rgba(0,0,0,0))'; // visual hint via position offset below
     field.appendChild(el);
-    el.addEventListener('pointerdown', (ev)=>{
-      ev.preventDefault();
-      if(item.collected || stopped || !mpRunning) return;
-      item.collected = true;
-      const r = el.getBoundingClientRect();
-      el.remove(); items = items.filter(it=>it!==item);
-      if(item.obstacle){
-        mpHadObstacleHit = true;
-        mpPlayFail();
-        stopped = true; cancelAnimationFrame(raf); clearField();
-        onFail();
-      } else {
-        mpScore += item.pts; mpUpdateScoreBar();
-        gsSpawnFloatText(r.left, r.top, '+'+item.pts, item.pts>=3?'#4C8FBF':'#F3CE7F');
-        mpPlayCollect(item.pts);
-        if(!level.infinite && mpScore >= mpTarget){ stopped=true; cancelAnimationFrame(raf); clearField(); onDone(); }
-      }
-    }, {passive:false});
-    items.push(item);
+    items.push({ el, lane:l, y:-50, vy:ph.speed, resolved:false, obstacle:isObstacle, pts, vertType: isObstacle?vertType:null });
+  }
+  function updateHud(){
+    document.getElementById('mpScoreText').textContent = mpScore;
+    if(mode==='survive'){ document.getElementById('mpTargetText').textContent = Math.max(0, Math.ceil(opts.duration-elapsed))+'s left'; document.getElementById('mpScoreFill').style.width = Math.min(100, elapsed/opts.duration*100)+'%'; }
+    else if(mode==='checkpoint'){ document.getElementById('mpTargetText').textContent = checkpointsReached+'/'+opts.checkpoints; document.getElementById('mpScoreFill').style.width = Math.min(100, checkpointsReached/opts.checkpoints*100)+'%'; }
+    else { document.getElementById('mpTargetText').textContent = 'Best '+(mpProgress.endlessBest||0); document.getElementById('mpScoreFill').style.width = Math.min(100, mpScore/Math.max(20,mpProgress.endlessBest||20)*100)+'%'; }
   }
   function clearField(){ items.forEach(it=>{ if(it.el.parentNode) it.el.remove(); }); items=[]; }
+  function doCheckpointTransition(){
+    checkpointsReached++;
+    bgIdx = (bgIdx+1) % sceneryList.length;
+    const flash = document.createElement('div');
+    flash.style.cssText = 'position:absolute;inset:0;background:#fff;opacity:0;z-index:8;pointer-events:none;transition:opacity .25s;';
+    field.appendChild(flash);
+    requestAnimationFrame(()=>{ flash.style.opacity='0.85'; setTimeout(()=>{ mpSetScene(sceneryList[bgIdx]); flash.style.opacity='0'; setTimeout(()=>flash.remove(),300); }, 180); });
+    gsSpawnFloatText(field.clientWidth/2-70, field.clientHeight/2, `Checkpoint ${checkpointsReached}!`, '#F3CE7F');
+    if(checkpointsReached >= opts.checkpoints){ stopped=true; cancelAnimationFrame(raf); clearField(); onDone(); }
+  }
   function loop(now){
     if(stopped) return;
     const dt = Math.min((now-lastT)/1000, 0.05); lastT = now;
     if(mpRunning){
-      spawnAcc += dt;
-      const every = level.infinite ? Math.max(0.5, level.spawnEvery - (now-mpStartTime)/1000*0.002) : (level.spawnEvery||1);
-      if(spawnAcc >= every){ spawnAcc = 0; spawnItem(); }
+      elapsed += dt; spawnAcc += dt;
+      const ph = difficulty();
+      if(spawnAcc >= ph.spawnEvery){ spawnAcc=0; spawnItem(); }
+      if(mode==='checkpoint' && mpScore >= nextCheckpointAt){ nextCheckpointAt += 12; doCheckpointTransition(); }
+      if(mode==='infinite' && now-lastComboT>2500 && comboStreak>0){ comboStreak=0; }
     }
-    const h = (document.getElementById('mahaprabhuGame').clientHeight)||window.innerHeight;
+    const h = field.clientHeight||window.innerHeight;
+    const collideY = h*0.83;
     for(let i=items.length-1;i>=0;i--){
       const it = items[i];
       it.y += it.vy*dt;
-      const sway = level.sway ? Math.sin(now/450 + it.phase)*16 : 0;
-      it.el.style.transform = `translate(${it.baseX+sway}px, ${it.y}px)`;
-      if(it.y > h*0.7){ it.el.remove(); items.splice(i,1); }
+      it.el.style.transform = `translate(${laneX(it.lane)}px, ${it.y}px)`;
+      if(!it.resolved && it.y>=collideY && it.lane===lane){
+        it.resolved = true;
+        const avoided = it.obstacle && ((it.vertType==='low' && jumping) || (it.vertType==='high' && sliding));
+        if(it.obstacle && !avoided){
+          mpHadObstacleHit = true; mpPlayFail();
+          stopped=true; cancelAnimationFrame(raf); clearField();
+          if(mode==='infinite') onDone(); else onFail();
+          return;
+        } else if(!it.obstacle){
+          mpScore += it.pts; comboStreak++; lastComboT = now; updateHud();
+          const r = it.el.getBoundingClientRect();
+          gsSpawnFloatText(r.left, r.top, '+'+it.pts+(comboStreak>=3?' 🔥x'+comboStreak:''), '#F3CE7F');
+          mpPlayCollect(it.pts);
+          it.el.remove(); items.splice(i,1);
+          continue;
+        } else {
+          it.el.remove(); items.splice(i,1); continue;
+        }
+      }
+      if(it.y > h*1.05){ it.el.remove(); items.splice(i,1); }
     }
+    updateHud();
+    if(mode==='survive' && elapsed>=opts.duration){ stopped=true; cancelAnimationFrame(raf); clearField(); onDone(); return; }
     raf = requestAnimationFrame(loop);
   }
   raf = requestAnimationFrame(loop);
-  return ()=>{ stopped=true; cancelAnimationFrame(raf); clearField(); };
+  return ()=>{ stopped=true; cancelAnimationFrame(raf); clearField(); ctrl.innerHTML=''; if(player.parentNode) player.remove(); };
+}
+
+/* =============== STAGE 5: character select ("after" transformation art only — Jagai/Madhai have one illustrated pose each, not a full frame-by-frame sheet, so the endless run shows that single pose rather than a walk cycle) =============== */
+const MP_RUNNER_SPRITES = {
+  jagai_before: MP+'characters/jagai_run_2.png',
+  madhai_before: MP+'characters/madhai_run_2.png',
+  jagai_after: MP+'characters/jagai_after.png',
+  madhai_after: MP+'characters/madhai_after.png'
+};
+let mpEndlessCharacter = 'jagai_after';
+function openMpCharSelect(){
+  document.getElementById('mahaprabhuGame').style.display = 'none';
+  const wrap = document.createElement('div');
+  wrap.id = 'mpCharSelectScreen';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:42;background:var(--bg-deep3);padding:24px 20px;overflow-y:auto;';
+  wrap.innerHTML = `
+    <div class="panel">
+      <h2>Choose Your Devotee</h2>
+      <p style="font-size:11.5px;color:var(--lavender);line-height:1.5;margin:0;">Jagai and Madhai, transformed by Mahaprabhu's mercy, now run the Infinite Sankirtan Journey together. Choose who you'll play as.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
+      <div class="mp-stage-card" id="mpPickJagai" style="height:220px;">
+        <img src="${MP}characters/jagai_after.png" style="object-position:center 20%;">
+        <div class="mp-stage-overlay"><div class="mp-stage-name">Jagai</div></div>
+      </div>
+      <div class="mp-stage-card" id="mpPickMadhai" style="height:220px;">
+        <img src="${MP}characters/madhai_after.png" style="object-position:center 20%;">
+        <div class="mp-stage-overlay"><div class="mp-stage-name">Madhai</div></div>
+      </div>
+    </div>
+    <button class="btn-ghost" id="mpCharSelectBack" style="width:100%;margin-top:16px;">‹ Back</button>
+  `;
+  document.body.appendChild(wrap);
+  document.getElementById('mpCharSelectBack').addEventListener('click', ()=>{ wrap.remove(); openMahaprabhuHub(); });
+  function pick(key){
+    mpEndlessCharacter = key;
+    wrap.remove();
+    document.getElementById('mahaprabhuGame').style.display = 'block';
+    mpSetScene(mpCurLevel.bg);
+    mpEngineCleanup = mpRunnerCore({ mode:'infinite', character:key, items:mpCurLevel.items, obstacles:mpCurLevel.obstacles, scenery:mpCurLevel.scenery }, mpCompleteEndless, mpFailStage);
+  }
+  document.getElementById('mpPickJagai').addEventListener('click', ()=>pick('jagai_after'));
+  document.getElementById('mpPickMadhai').addEventListener('click', ()=>pick('madhai_after'));
 }
 
 /* ---- Completion ---- */
@@ -2784,10 +3024,10 @@ async function mpCompleteStage(){
   mpRunning = false; clearInterval(mpTimerInterval);
   if(mpEngineCleanup) mpEngineCleanup();
   mpStopMusic();
-  const happiness = Math.min(100, Math.round((mpScore/Math.max(1,mpTarget))*100));
+  const happiness = mpCurLevel.type==='bubble' ? Math.min(100, Math.round((mpScore/Math.max(1,mpTarget))*100)) : 100;
   const stars = happiness>=90 ? 3 : happiness>=60 ? 2 : 1;
   mpProgress.bestStars[mpCurLevelIdx] = Math.max(mpProgress.bestStars[mpCurLevelIdx]||0, stars);
-  if(mpCurLevelIdx === mpProgress.unlocked) mpProgress.unlocked = Math.min(mpCurLevelIdx+1, MP_LEVELS.length);
+  if(mpCurLevelIdx === mpProgress.unlocked) mpProgress.unlocked = Math.min(mpCurLevelIdx+1, MP_LEVELS.length-1);
   mpProgress.coins = (mpProgress.coins||0) + stars*15;
   if(!mpHadObstacleHit){
     mpProgress.cleanRuns = (mpProgress.cleanRuns||0) + 1;
@@ -2801,12 +3041,11 @@ async function mpCompleteStage(){
   }
   if(mpCurLevelIdx===0) await mpAwardBadge('village_hero');
   if(mpCurLevelIdx===2) await mpAwardBadge('persistence');
-  if(mpCurLevelIdx===4){ await mpAwardBadge('blessed'); await mpAwardBadge('full_mercy'); }
-  if(mpProgress.unlocked >= MP_LEVELS.length) await mpAwardBadge('transformation');
+  if(mpCurLevelIdx===3){ await mpAwardBadge('blessed'); await mpAwardBadge('full_mercy'); await mpAwardBadge('transformation'); }
   await sSet('mahaprabhu:progress', mpProgress);
-  document.getElementById('mpPlayerSprite').src = MP_CHARACTERS.devotee.celebrate;
+  document.getElementById('mpPlayerSprite').style.display = 'none';
   document.getElementById('mpStarsEarned').textContent = '★'.repeat(stars)+'☆'.repeat(3-stars);
-  document.getElementById('mpWinDesc').textContent = `Score ${mpScore} · +${stars*15} coins.` + (mpProgress.unlocked>=MP_LEVELS.length ? ' Infinite Sankirtan Journey is now unlocked!' : '');
+  document.getElementById('mpWinDesc').textContent = `Score ${mpScore} · +${stars*15} coins.` + (mpCurLevelIdx===3 ? ' Infinite Sankirtan Journey is now unlocked!' : '');
   document.getElementById('mpWinOverlay').classList.add('show');
 }
 async function mpCompleteEndless(){
@@ -2818,7 +3057,7 @@ async function mpCompleteEndless(){
   mpProgress.coins = (mpProgress.coins||0) + mpScore;
   if(mpScore >= 100) await mpAwardBadge('enlightened_being');
   await sSet('mahaprabhu:progress', mpProgress);
-  document.getElementById('mpPlayerSprite').src = MP_CHARACTERS.devotee.celebrate;
+  document.getElementById('mpPlayerSprite').style.display = 'none';
   document.getElementById('mpStarsEarned').textContent = isNewBest ? '🏆' : '🙏';
   document.getElementById('mpWinDesc').textContent = `Score ${mpScore} · +${mpScore} coins.` + (isNewBest ? ' New high score!' : ` Best: ${mpProgress.endlessBest}`);
   document.getElementById('mpWinOverlay').classList.add('show');
@@ -2828,11 +3067,6 @@ document.getElementById('mpWinContinueBtn').addEventListener('click', ()=>{
   document.getElementById('mahaprabhuGame').style.display='none';
   openMahaprabhuHub();
 });
-function openMpEndless(){
-  document.getElementById('mahaprabhuHub').classList.remove('active');
-  mpCurLevelIdx = MP_LEVELS.length;
-  mpStartRun(true);
-}
 
 renderMahaprabhuCard();
 

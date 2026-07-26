@@ -3,6 +3,47 @@
 Complete Capacitor 6 Android project. Builds entirely on GitHub's servers —
 no Android Studio needed anywhere.
 
+## 🎮 Mahaprabhu's Mercy — full gameplay redesign, story/music/save untouched
+
+Per the redesign brief: story text, story illustrations, background music,
+story sequence, navigation, and the save system are all **completely
+unchanged**. Only gameplay, stage visuals, and level design were rebuilt.
+
+- **Stage cards fixed**: real `object-fit: cover` cropping in a fixed-size
+  rounded card with a soft shadow and gold border — no more stretched
+  artwork, every card is the same size.
+- **Stage 1 & 4 — real bubble match-3**: tap-to-swap grid, 3+ matching
+  clears with cascading chain reactions and a rising combo multiplier,
+  moves cap, devotional bubble icons. Stage 4 adds a 6th color and a
+  rainbow wildcard bubble (swapping it into any bubble clears every bubble
+  of that color on the board).
+- **Stage 2 — lane runner**: swipe or tap to change lanes, jump over low
+  obstacles, slide under high ones, survive a timed run while collecting
+  Mercy Hearts and Lotus Flowers.
+- **Stage 3 — checkpoint runner**: distinct from Stage 2 — the objective is
+  reaching 4 checkpoints (not just surviving a clock), each one triggering
+  a flash transition and a scenery change (riverside → market → temple →
+  temple courtyard), giving it real cinematic pacing.
+- **Stage 5 — Infinite Sankirtan Journey, fully redesigned**: a character
+  select screen appears first — **Jagai or Madhai, in their transformed
+  devotional appearance** (using your "after" illustration), never
+  Mahaprabhu. Then a true endless run: no finish line, continuously
+  escalating speed/spawn-rate/obstacle-density, a combo streak ("🔥x3" on
+  quick chains), and a persisted high score with a "🏆 New high score!"
+  callout.
+
+**Two honest simplifications, stated plainly:**
+- The "after" Jagai/Madhai art you sent is one illustrated scene, not a
+  multi-pose sprite sheet — so Stage 5 shows that single running
+  illustration per character rather than a true walk/run frame cycle.
+  Stages 2 and 3, by contrast, **do** get real multi-frame run animation,
+  since those use the original dedicated Jagai/Madhai sprite sheets from
+  earlier in the project.
+- Jump/slide are triggered by dedicated buttons plus swipe-up/swipe-down
+  gesture detection — there's no physics-based jump arc, just a timed
+  pose-and-hitbox change, which is honest given this is a DOM/CSS engine,
+  not an actual physics engine.
+
 ## 🎮 New second game: Mahaprabhu's Mercy — Jagai & Madhai
 
 A brand-new game card now sits below Gau Seva in Sri Vrindavan on the Play
