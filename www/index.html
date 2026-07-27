@@ -2978,12 +2978,12 @@ function mpRunnerCore(opts, onDone, onFail){
 
 /* =============== STAGE 5: character select ("after" transformation art only — Jagai/Madhai have one illustrated pose each, not a full frame-by-frame sheet, so the endless run shows that single pose rather than a walk cycle) =============== */
 const MP_RUNNER_SPRITES = {
-  jagai: MP+'characters/jagai_new.png',
-  madhai: MP+'characters/madhai_new.png'
+  jagai: MP+'characters/jagai_hero.png',
+  madhai: MP+'characters/madhai_hero.png'
 };
 const MP_RUNNER_SPRITES_3D = {
-  jagai: MP+'characters/jagai_new.png',
-  madhai: MP+'characters/madhai_new.png'
+  jagai: MP+'characters/jagai_hero.png',
+  madhai: MP+'characters/madhai_hero.png'
 };
 let mpEndlessCharacter = 'jagai';
 function openMpCharSelect(){
@@ -2998,11 +2998,11 @@ function openMpCharSelect(){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
       <div class="mp-stage-card" id="mpPickJagai" style="height:220px;">
-        <img src="${MP}characters/jagai_new.png" style="object-position:center 15%;">
+        <img src="${MP}characters/jagai_after2.png" style="object-position:center 10%;">
         <div class="mp-stage-overlay"><div class="mp-stage-name">Jagai</div></div>
       </div>
       <div class="mp-stage-card" id="mpPickMadhai" style="height:220px;">
-        <img src="${MP}characters/madhai_new.png" style="object-position:center 15%;">
+        <img src="${MP}characters/madhai_after2.png" style="object-position:center 10%;">
         <div class="mp-stage-overlay"><div class="mp-stage-name">Madhai</div></div>
       </div>
     </div>
@@ -3024,13 +3024,13 @@ function openMpCharSelect(){
 /* =============== STAGE 5: real 3D endless runner (Three.js — the same
    library already loaded for the Journey chapters' 3D game, reused here
    with entirely new geometry/textures; nothing from Journey is copied).
-   The character is a camera-facing billboard sprite textured with the
-   uploaded Jagai/Madhai artwork — a real, common 2.5D technique (2D
-   character cutout inside a true 3D scene with a moving chase camera),
-   not a rigged 3D model. Since only one illustrated pose was provided per
-   character, "idle/run/jump/slide" are simulated via bobbing, an arc
-   translation, and a squash transform on that single sprite rather than
-   distinct drawn animation frames — stated plainly rather than implied. */
+   The playable character is now a genuine procedural 3D humanoid — the
+   same construction technique used for the main Journey game's runner
+   (cylinder body, sphere head, tilak marks, swinging cylinder legs/arms
+   for a real running gait, real jump physics with gravity) — recolored
+   per the chosen devotee, rather than a flat 2D image. The Jagai/Madhai
+   artwork is still used on the character-select screen beforehand. */
+
 let mp3DState = null;
 function mp3DDispose(){
   if(!mp3DState) return;
@@ -3050,19 +3050,21 @@ function mpRun3DEndless(characterKey, onDone){
   mpScore = 0;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xE9D9B8);
-  scene.fog = new THREE.Fog(0xE9D9B8, 16, 55);
+  scene.background = new THREE.Color(0xBFE3F5);
+  scene.fog = new THREE.Fog(0xBFE3F5, 16, 55);
   const w = field.clientWidth||window.innerWidth, h = field.clientHeight||window.innerHeight;
   const camera = new THREE.PerspectiveCamera(58, w/h, 0.1, 200);
-  camera.position.set(0, 3.1, 6.4);
-  camera.lookAt(0, 1.5, -6);
+  camera.position.set(0, 3.3, 6.6);
+  camera.lookAt(0, 1.3, -6);
   const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
   renderer.setSize(w, h);
+  renderer.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;z-index:3;';
   field.appendChild(renderer.domElement);
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.95));
-  const sun = new THREE.DirectionalLight(0xfff1cf, 0.85); sun.position.set(5,10,5); scene.add(sun);
+  const sun = new THREE.DirectionalLight(0xfff1cf, 0.9); sun.position.set(5,10,5); scene.add(sun);
 
+  // Path
   const groundCanvas = document.createElement('canvas'); groundCanvas.width=128; groundCanvas.height=128;
   const gctx = groundCanvas.getContext('2d');
   gctx.fillStyle = '#CDA876'; gctx.fillRect(0,0,128,128);
@@ -3074,22 +3076,64 @@ function mpRun3DEndless(characterKey, onDone){
   ground.rotation.x = -Math.PI/2; ground.position.z = -230;
   scene.add(ground);
 
-  const sideGeo = new THREE.PlaneGeometry(3, 500);
-  const sideMatL = new THREE.MeshBasicMaterial({ color:0x8FBF6B, transparent:true, opacity:0.5, side:THREE.DoubleSide });
-  const sideL = new THREE.Mesh(sideGeo, sideMatL); sideL.position.set(-4.6, 0.5, -230); sideL.rotation.y = Math.PI/2*0.15; scene.add(sideL);
-  const sideR = sideL.clone(); sideR.position.x = 4.6; scene.add(sideR);
+  // Flowing river banks on both sides — animated scrolling water texture
+  const riverCanvas = document.createElement('canvas'); riverCanvas.width=64; riverCanvas.height=64;
+  const rctx = riverCanvas.getContext('2d');
+  rctx.fillStyle = '#2E7DB0'; rctx.fillRect(0,0,64,64);
+  rctx.strokeStyle = 'rgba(255,255,255,0.35)'; rctx.lineWidth = 2;
+  for(let yy=0; yy<64; yy+=10){ rctx.beginPath(); rctx.moveTo(0,yy); rctx.lineTo(64,yy+8); rctx.stroke(); }
+  const riverTex = new THREE.CanvasTexture(riverCanvas);
+  riverTex.wrapS = riverTex.wrapT = THREE.RepeatWrapping; riverTex.repeat.set(2, 80);
+  const riverMat = new THREE.MeshBasicMaterial({ map: riverTex, transparent:true, opacity:0.9 });
+  const riverL = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 500), riverMat);
+  riverL.rotation.x = -Math.PI/2; riverL.position.set(-4.8, -0.02, -230); scene.add(riverL);
+  const riverR = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 500), riverMat);
+  riverR.rotation.x = -Math.PI/2; riverR.position.set(4.8, -0.02, -230); scene.add(riverR);
 
-  const loader = new THREE.TextureLoader();
-  const charTex = loader.load(MP_RUNNER_SPRITES_3D[characterKey] || MP_RUNNER_SPRITES_3D.jagai);
-  const player = new THREE.Sprite(new THREE.SpriteMaterial({ map: charTex, transparent:true }));
-  player.scale.set(1.9, 3.0, 1);
-  player.position.set(0, 1.5, 4.2);
-  scene.add(player);
+  // Simple trees along the riverbank for depth/scenery
+  const treeMat = new THREE.MeshBasicMaterial({ color:0x3E7A4A });
+  const trunkMat = new THREE.MeshBasicMaterial({ color:0x6B4A2E });
+  for(let i=0;i<22;i++){
+    const side = i%2===0 ? -1 : 1;
+    const z = -8 - i*20;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.14,0.8,6), trunkMat);
+    const leaves = new THREE.Mesh(new THREE.ConeGeometry(0.55,1.3,7), treeMat);
+    trunk.position.set(side*6.6, 0.4, z); leaves.position.set(side*6.6, 1.3, z);
+    scene.add(trunk); scene.add(leaves);
+  }
 
-  let lane = 0, jumping=false, sliding=false, jumpT=0, slideTimer=null;
+  /* Procedural 3D humanoid character — the same technique used for the main
+     Journey game's runner (cylinder body, sphere head, tilak marks, swinging
+     cylinder legs/arms with a real running gait), not a flat 2D cutout.
+     Recolored per the chosen devotee. */
+  const ROBE = characterKey==='madhai' ? {robe:0x7A2E3D, sash:0xD4A857} : {robe:0x3E7A4A, sash:0xD4A857};
+  const playerGroup = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: ROBE.robe, roughness:0.6 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.5,1.1,10), bodyMat);
+  body.position.y = 0.75; playerGroup.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34,12,12), new THREE.MeshStandardMaterial({ color:0xF3D9B8, roughness:0.5 }));
+  head.position.y = 1.55; playerGroup.add(head);
+  const tilak = new THREE.Mesh(new THREE.BoxGeometry(0.05,0.25,0.02), new THREE.MeshStandardMaterial({ color:0xF3CE7F }));
+  tilak.position.set(0,1.55,0.32); playerGroup.add(tilak);
+  const sash = new THREE.Mesh(new THREE.TorusGeometry(0.47,0.05,6,16), new THREE.MeshStandardMaterial({ color: ROBE.sash }));
+  sash.rotation.x = Math.PI/2; sash.position.y = 0.55; playerGroup.add(sash);
+  const legMat = new THREE.MeshStandardMaterial({ color:0xF3E9D8 });
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.6,8), legMat);
+  legL.position.set(-0.18,0.3,0); playerGroup.add(legL);
+  const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.6,8), legMat);
+  legR.position.set(0.18,0.3,0); playerGroup.add(legR);
+  const armMat = new THREE.MeshStandardMaterial({ color: ROBE.robe });
+  const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.09,0.55,8), armMat);
+  armL.position.set(-0.46,0.95,0); playerGroup.add(armL);
+  const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.09,0.55,8), armMat);
+  armR.position.set(0.46,0.95,0); playerGroup.add(armR);
+  playerGroup.position.set(0, 0, 4.2);
+  scene.add(playerGroup);
+
+  let lane = 0, jumpVY = 0, onGround = true, sliding = false, slideTimer = null, runTime = 0;
   const laneX = l => l*1.7;
-  function doJump(){ if(jumping||sliding) return; jumping=true; jumpT=0; }
-  function doSlide(){ if(jumping||sliding) return; sliding=true; clearTimeout(slideTimer); slideTimer=setTimeout(()=>{ sliding=false; }, 460); }
+  function doJump(){ if(!onGround||sliding) return; jumpVY = 7.2; onGround = false; }
+  function doSlide(){ if(sliding||!onGround) return; sliding = true; playerGroup.scale.set(1,0.55,1); clearTimeout(slideTimer); slideTimer=setTimeout(()=>{ sliding=false; playerGroup.scale.set(1,1,1); }, 480); }
 
   const ctrl = document.getElementById('mpActionRow');
   ctrl.innerHTML = `<button class="ctrl-btn" id="mp3DLeft">◀</button><button class="ctrl-btn" id="mp3DJump">⬆</button><button class="ctrl-btn" id="mp3DSlide">⬇</button><button class="ctrl-btn" id="mp3DRight">▶</button>`;
@@ -3110,18 +3154,30 @@ function mpRun3DEndless(characterKey, onDone){
   field.addEventListener('touchend', te, {passive:true});
 
   const items = [];
-  const collectGeo = new THREE.SphereGeometry(0.32, 12, 12);
+  const collectGeo = new THREE.OctahedronGeometry(0.32);
   const obstacleGeo = new THREE.BoxGeometry(0.95, 0.95, 0.95);
-  const collectColors = [0xF3CE7F, 0x4C8FBF, 0xE2853F, 0xDCC6E8];
-  function obstacleChanceNow(elapsed){ return Math.min(0.4, 0.18 + elapsed*0.004); }
-  function speedNow(elapsed){ return Math.min(30, 13 + elapsed*0.28); }
-  function spawnEveryNow(elapsed){ return Math.max(0.5, 1.1 - elapsed*0.01); }
+  const collectColors = [0xF3CE7F, 0xE8B84B, 0xFFFFFF, 0xE2853F]; // gold / marigold / white / saffron
+  const obstacleColor = 0x7A5230;
+
+  /* Difficulty rises in clear, noticeable waves rather than one smooth ramp —
+     easy start, then several distinct step-ups — so it's approachable for a
+     young child at first and still genuinely challenging once warmed up,
+     across a wide age range. */
+  function wave(elapsed){
+    if(elapsed < 25)  return { spawnEvery:1.15, speed:11, obstacleChance:0.16 };
+    if(elapsed < 60)  return { spawnEvery:0.95, speed:14, obstacleChance:0.22 };
+    if(elapsed < 110) return { spawnEvery:0.78, speed:17, obstacleChance:0.28 };
+    if(elapsed < 170) return { spawnEvery:0.64, speed:20, obstacleChance:0.33 };
+    const extra = Math.min(10, (elapsed-170)*0.03);
+    return { spawnEvery:Math.max(0.42,0.56-extra*0.01), speed:22+extra, obstacleChance:Math.min(0.42,0.36+extra*0.005) };
+  }
   function spawnItem(elapsed){
-    const isObstacle = Math.random() < obstacleChanceNow(elapsed);
+    const ph = wave(elapsed);
+    const isObstacle = Math.random() < ph.obstacleChance;
     const l = Math.floor(Math.random()*3)-1;
     let mesh;
     if(isObstacle){
-      mesh = new THREE.Mesh(obstacleGeo, new THREE.MeshBasicMaterial({ color:0x7A5230 }));
+      mesh = new THREE.Mesh(obstacleGeo, new THREE.MeshBasicMaterial({ color:obstacleColor }));
       mesh.userData.vertType = Math.random()<0.5 ? 'low' : 'high';
       mesh.position.y = mesh.userData.vertType==='high' ? 1.7 : 0.47;
     } else {
@@ -3129,7 +3185,7 @@ function mpRun3DEndless(characterKey, onDone){
       mesh.position.y = 1.15;
     }
     mesh.position.x = laneX(l); mesh.position.z = -55;
-    mesh.userData.lane = l; mesh.userData.obstacle = isObstacle; mesh.userData.resolved = false; mesh.userData.pts = isObstacle?0:(1+Math.floor(Math.random()*3));
+    mesh.userData.lane = l; mesh.userData.obstacle = isObstacle; mesh.userData.resolved=false; mesh.userData.pts = isObstacle?0:(1+Math.floor(Math.random()*3));
     scene.add(mesh); items.push(mesh);
   }
   function updateHud3D(){
@@ -3143,27 +3199,38 @@ function mpRun3DEndless(characterKey, onDone){
   function loop(now){
     if(stopped) return;
     const dt = Math.min((now-lastT)/1000, 0.05); lastT = now;
+    const ph = wave(elapsed);
     if(mpRunning){
       elapsed += dt; spawnAcc += dt;
-      if(spawnAcc >= spawnEveryNow(elapsed)){ spawnAcc = 0; spawnItem(elapsed); }
+      if(spawnAcc >= ph.spawnEvery){ spawnAcc = 0; spawnItem(elapsed); }
+      riverTex.offset.y -= dt*0.6;
+      groundTex.offset.y -= dt*(ph.speed*0.02);
     }
-    player.position.x += (laneX(lane) - player.position.x) * 0.22;
-    if(jumping){
-      jumpT += dt; const t = jumpT/0.5;
-      if(t>=1){ jumping=false; player.position.y = 1.5; player.scale.set(1.9,3.0,1); }
-      else { player.position.y = 1.5 + Math.sin(t*Math.PI)*1.35; }
-    } else if(sliding){
-      player.scale.set(1.9, 1.7, 1); player.position.y = 0.95;
-    } else {
-      player.scale.set(1.9, 3.0, 1); player.position.y = 1.5 + Math.sin(now/220)*0.05;
+    playerGroup.position.x += (laneX(lane) - playerGroup.position.x) * Math.min(1, dt*10);
+
+    if(!onGround){
+      jumpVY -= 18*dt;
+      playerGroup.position.y += jumpVY*dt;
+      if(playerGroup.position.y <= 0){ playerGroup.position.y = 0; jumpVY = 0; onGround = true; }
     }
-    const speed = speedNow(elapsed);
+    if(mpRunning){
+      runTime += dt*ph.speed*1.4;
+      if(onGround && !sliding){
+        legL.rotation.x = Math.sin(runTime)*0.7; legR.rotation.x = Math.sin(runTime+Math.PI)*0.7;
+        armL.rotation.x = Math.sin(runTime+Math.PI)*0.5; armR.rotation.x = Math.sin(runTime)*0.5;
+        body.position.y = 0.75 + Math.abs(Math.sin(runTime))*0.03;
+      } else if(!onGround){
+        legL.rotation.x = 0.3; legR.rotation.x = -0.3;
+      }
+    }
+
     for(let i=items.length-1;i>=0;i--){
       const it = items[i];
-      it.position.z += speed*dt;
+      it.position.z += ph.speed*dt;
+      it.rotation.y += dt*2;
       if(!it.userData.resolved && it.position.z > 3.4 && it.position.z < 4.6 && it.userData.lane===lane){
         it.userData.resolved = true;
-        const avoided = it.userData.obstacle && ((it.userData.vertType==='low' && jumping) || (it.userData.vertType==='high' && sliding));
+        const avoided = it.userData.obstacle && ((it.userData.vertType==='low' && !onGround) || (it.userData.vertType==='high' && sliding));
         if(it.userData.obstacle && !avoided){
           mpHadObstacleHit = true; mpPlayFail();
           stopped = true; cancelAnimationFrame(raf); clearItems();
@@ -3193,6 +3260,7 @@ function mpRun3DEndless(characterKey, onDone){
     mp3DDispose();
   };
 }
+
 
 /* ---- Completion ---- */
 async function mpCompleteStage(){

@@ -3,38 +3,34 @@
 Complete Capacitor 6 Android project. Builds entirely on GitHub's servers —
 no Android Studio needed anywhere.
 
-## 🎮 Stage 5 is now a real 3D endless runner, plus consistent Jagai/Madhai art
+## 🏃‍♂️ Stage 5 — real 3D humanoid character, river environment, wave-based difficulty
 
-**Stage 5 — Infinite Sankirtan Journey** now runs on **Three.js**, the same
-3D library already loaded for the Journey chapters' game — reused, not
-duplicated, and built with entirely new geometry and textures (nothing
-copied from Journey's assets). It has a real perspective camera trailing
-the runner, a scrolling lane-marked ground, translucent garden-colored
-side walls, and 3D obstacles/collectibles moving toward camera — genuine
-3D depth and camera movement, not a flat 2D screen.
+**Stage 5 (Infinite Sankirtan Journey)** runs on a genuine Three.js 3D
+scene — its own isolated engine, no Journey code touched or reused: a real
+perspective chase camera, a scrolling 3D ground path, and real 3D geometry
+for obstacles (boxes) and collectibles (glowing octahedrons).
 
-**Character select** (Jagai or Madhai) now appears before every Infinite
-Sankirtan Journey run, using your new uploaded artwork, and **never
-Mahaprabhu**. The chosen character renders as a camera-facing sprite
-inside the 3D scene — a real, common technique (a 2D character cutout
-inside a true 3D world with a moving camera), not a fully rigged 3D model.
+**The playable character is a real procedural 3D humanoid**, not a 2D
+image — built with the same technique as the main Journey game's runner:
+a cylinder body, sphere head, tilak marks, and independently swinging
+cylinder legs/arms for a genuine running gait, plus real gravity-based
+jump physics. The Jagai/Madhai artwork still appears on the
+character-select screen beforehand — picking one now recolors this 3D
+character (green sash for Jagai, maroon for Madhai) rather than swapping
+in a flat picture.
 
-**Stages 2 and 3** now use the same new Jagai/Madhai artwork too (Jagai on
-Stage 2, Madhai on Stage 3) instead of the previous placeholder character,
-so the same two recognizable characters — same face, same clothing, same
-colors — now appear consistently across Stages 2, 3, and 5.
+**A 3D river now flows along both sides of the path** (animated scrolling
+water texture) with simple trees along the banks for depth.
 
-**One honest limitation, stated plainly**: only one illustrated running
-pose was provided per character (not a walk/run/jump/slide sprite sheet),
-so "idle," "run," "jump," and "slide" are simulated on that single image —
-a gentle bob for running, an arc translation for jumping, a squash
-transform for sliding — rather than distinct hand-drawn animation frames.
-The motion is smooth and responsive, but it's honestly built from one
-piece of art per character, not several.
+**Difficulty escalates in clear waves** rather than one smooth ramp —
+noticeably easy for the first 25 seconds, then several real step-ups in
+speed, spawn rate, and obstacle density over the next few minutes, aimed
+at staying approachable for a young child at the start while still getting
+genuinely harder for an adult player who sticks with it.
 
-Story text, story illustrations, background music, story sequence,
-navigation, and the save system are all unchanged — only Stage 5's engine
-and the Stage 2/3/5 character art were touched.
+Stages 2 and 3 still use the uploaded Jagai/Madhai artwork directly (Stage
+2 = Jagai, Stage 3 = Madhai). Story text, story illustrations, background
+music, story sequence, navigation, and the save system were not touched.
 
 ## 🎮 Mahaprabhu's Mercy — full gameplay redesign, story/music/save untouched
 
