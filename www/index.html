@@ -2703,8 +2703,8 @@ function mpStartRun(){
   document.getElementById('mpObjectiveLabel').textContent = lv.objective;
   mpSetScene(lv.bg);
   if(lv.type === 'bubble') mpEngineCleanup = mpRunBubbleEngine(lv, mpCompleteStage, mpFailStage);
-  else if(lv.type === 'runner') mpEngineCleanup = mpRunnerCore({ mode:'survive', duration:lv.duration, items:lv.items, obstacles:lv.obstacles, scenery:[lv.bg] }, mpCompleteStage, mpFailStage);
-  else if(lv.type === 'checkpoint') mpEngineCleanup = mpRunnerCore({ mode:'checkpoint', checkpoints:lv.checkpoints, items:lv.items, obstacles:lv.obstacles, scenery:lv.scenery }, mpCompleteStage, mpFailStage);
+  else if(lv.type === 'runner') mpEngineCleanup = mpRunnerCore({ mode:'survive', duration:lv.duration, character:'jagai', items:lv.items, obstacles:lv.obstacles, scenery:[lv.bg] }, mpCompleteStage, mpFailStage);
+  else if(lv.type === 'checkpoint') mpEngineCleanup = mpRunnerCore({ mode:'checkpoint', checkpoints:lv.checkpoints, character:'madhai', items:lv.items, obstacles:lv.obstacles, scenery:lv.scenery }, mpCompleteStage, mpFailStage);
   else if(lv.type === 'endless') openMpCharSelect();
 }
 function mpSetScene(bgName){
@@ -2978,12 +2978,14 @@ function mpRunnerCore(opts, onDone, onFail){
 
 /* =============== STAGE 5: character select ("after" transformation art only — Jagai/Madhai have one illustrated pose each, not a full frame-by-frame sheet, so the endless run shows that single pose rather than a walk cycle) =============== */
 const MP_RUNNER_SPRITES = {
-  jagai_before: MP+'characters/jagai_run_2.png',
-  madhai_before: MP+'characters/madhai_run_2.png',
-  jagai_after: MP+'characters/jagai_after.png',
-  madhai_after: MP+'characters/madhai_after.png'
+  jagai: MP+'characters/jagai_new.png',
+  madhai: MP+'characters/madhai_new.png'
 };
-let mpEndlessCharacter = 'jagai_after';
+const MP_RUNNER_SPRITES_3D = {
+  jagai: MP+'characters/jagai_new.png',
+  madhai: MP+'characters/madhai_new.png'
+};
+let mpEndlessCharacter = 'jagai';
 function openMpCharSelect(){
   document.getElementById('mahaprabhuGame').style.display = 'none';
   const wrap = document.createElement('div');
@@ -2996,11 +2998,11 @@ function openMpCharSelect(){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
       <div class="mp-stage-card" id="mpPickJagai" style="height:220px;">
-        <img src="${MP}characters/jagai_after.png" style="object-position:center 20%;">
+        <img src="${MP}characters/jagai_new.png" style="object-position:center 15%;">
         <div class="mp-stage-overlay"><div class="mp-stage-name">Jagai</div></div>
       </div>
       <div class="mp-stage-card" id="mpPickMadhai" style="height:220px;">
-        <img src="${MP}characters/madhai_after.png" style="object-position:center 20%;">
+        <img src="${MP}characters/madhai_new.png" style="object-position:center 15%;">
         <div class="mp-stage-overlay"><div class="mp-stage-name">Madhai</div></div>
       </div>
     </div>
@@ -3012,11 +3014,184 @@ function openMpCharSelect(){
     mpEndlessCharacter = key;
     wrap.remove();
     document.getElementById('mahaprabhuGame').style.display = 'block';
-    mpSetScene(mpCurLevel.bg);
-    mpEngineCleanup = mpRunnerCore({ mode:'infinite', character:key, items:mpCurLevel.items, obstacles:mpCurLevel.obstacles, scenery:mpCurLevel.scenery }, mpCompleteEndless, mpFailStage);
+    document.getElementById('mpObjectiveLabel').textContent = 'Infinite Sankirtan Journey';
+    mpEngineCleanup = mpRun3DEndless(key, mpCompleteEndless);
   }
-  document.getElementById('mpPickJagai').addEventListener('click', ()=>pick('jagai_after'));
-  document.getElementById('mpPickMadhai').addEventListener('click', ()=>pick('madhai_after'));
+  document.getElementById('mpPickJagai').addEventListener('click', ()=>pick('jagai'));
+  document.getElementById('mpPickMadhai').addEventListener('click', ()=>pick('madhai'));
+}
+
+/* =============== STAGE 5: real 3D endless runner (Three.js — the same
+   library already loaded for the Journey chapters' 3D game, reused here
+   with entirely new geometry/textures; nothing from Journey is copied).
+   The character is a camera-facing billboard sprite textured with the
+   uploaded Jagai/Madhai artwork — a real, common 2.5D technique (2D
+   character cutout inside a true 3D scene with a moving chase camera),
+   not a rigged 3D model. Since only one illustrated pose was provided per
+   character, "idle/run/jump/slide" are simulated via bobbing, an arc
+   translation, and a squash transform on that single sprite rather than
+   distinct drawn animation frames — stated plainly rather than implied. */
+let mp3DState = null;
+function mp3DDispose(){
+  if(!mp3DState) return;
+  if(mp3DState.raf) cancelAnimationFrame(mp3DState.raf);
+  if(mp3DState.renderer){
+    mp3DState.renderer.dispose();
+    if(mp3DState.renderer.domElement && mp3DState.renderer.domElement.parentNode) mp3DState.renderer.domElement.parentNode.removeChild(mp3DState.renderer.domElement);
+  }
+  if(mp3DState.resizeHandler) window.removeEventListener('resize', mp3DState.resizeHandler);
+  if(mp3DState.touchStart) mp3DState.field.removeEventListener('touchstart', mp3DState.touchStart);
+  if(mp3DState.touchEnd) mp3DState.field.removeEventListener('touchend', mp3DState.touchEnd);
+  mp3DState = null;
+}
+function mpRun3DEndless(characterKey, onDone){
+  const field = document.getElementById('mpPlayField');
+  field.innerHTML = '';
+  mpScore = 0;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xE9D9B8);
+  scene.fog = new THREE.Fog(0xE9D9B8, 16, 55);
+  const w = field.clientWidth||window.innerWidth, h = field.clientHeight||window.innerHeight;
+  const camera = new THREE.PerspectiveCamera(58, w/h, 0.1, 200);
+  camera.position.set(0, 3.1, 6.4);
+  camera.lookAt(0, 1.5, -6);
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setSize(w, h);
+  field.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.95));
+  const sun = new THREE.DirectionalLight(0xfff1cf, 0.85); sun.position.set(5,10,5); scene.add(sun);
+
+  const groundCanvas = document.createElement('canvas'); groundCanvas.width=128; groundCanvas.height=128;
+  const gctx = groundCanvas.getContext('2d');
+  gctx.fillStyle = '#CDA876'; gctx.fillRect(0,0,128,128);
+  gctx.fillStyle = 'rgba(255,255,255,0.55)';
+  gctx.fillRect(40,0,6,128); gctx.fillRect(82,0,6,128);
+  const groundTex = new THREE.CanvasTexture(groundCanvas);
+  groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping; groundTex.repeat.set(1, 60);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 500), new THREE.MeshBasicMaterial({ map: groundTex }));
+  ground.rotation.x = -Math.PI/2; ground.position.z = -230;
+  scene.add(ground);
+
+  const sideGeo = new THREE.PlaneGeometry(3, 500);
+  const sideMatL = new THREE.MeshBasicMaterial({ color:0x8FBF6B, transparent:true, opacity:0.5, side:THREE.DoubleSide });
+  const sideL = new THREE.Mesh(sideGeo, sideMatL); sideL.position.set(-4.6, 0.5, -230); sideL.rotation.y = Math.PI/2*0.15; scene.add(sideL);
+  const sideR = sideL.clone(); sideR.position.x = 4.6; scene.add(sideR);
+
+  const loader = new THREE.TextureLoader();
+  const charTex = loader.load(MP_RUNNER_SPRITES_3D[characterKey] || MP_RUNNER_SPRITES_3D.jagai);
+  const player = new THREE.Sprite(new THREE.SpriteMaterial({ map: charTex, transparent:true }));
+  player.scale.set(1.9, 3.0, 1);
+  player.position.set(0, 1.5, 4.2);
+  scene.add(player);
+
+  let lane = 0, jumping=false, sliding=false, jumpT=0, slideTimer=null;
+  const laneX = l => l*1.7;
+  function doJump(){ if(jumping||sliding) return; jumping=true; jumpT=0; }
+  function doSlide(){ if(jumping||sliding) return; sliding=true; clearTimeout(slideTimer); slideTimer=setTimeout(()=>{ sliding=false; }, 460); }
+
+  const ctrl = document.getElementById('mpActionRow');
+  ctrl.innerHTML = `<button class="ctrl-btn" id="mp3DLeft">◀</button><button class="ctrl-btn" id="mp3DJump">⬆</button><button class="ctrl-btn" id="mp3DSlide">⬇</button><button class="ctrl-btn" id="mp3DRight">▶</button>`;
+  document.getElementById('mp3DLeft').addEventListener('click', ()=>{ lane=Math.max(-1,lane-1); });
+  document.getElementById('mp3DRight').addEventListener('click', ()=>{ lane=Math.min(1,lane+1); });
+  document.getElementById('mp3DJump').addEventListener('click', doJump);
+  document.getElementById('mp3DSlide').addEventListener('click', doSlide);
+  let tsx=null, tsy=null;
+  function ts(e){ tsx=e.touches[0].clientX; tsy=e.touches[0].clientY; }
+  function te(e){
+    if(tsx==null) return;
+    const dx=e.changedTouches[0].clientX-tsx, dy=e.changedTouches[0].clientY-tsy;
+    if(Math.abs(dx)>Math.abs(dy) && Math.abs(dx)>40){ if(dx>0) lane=Math.min(1,lane+1); else lane=Math.max(-1,lane-1); }
+    else if(dy<-40) doJump(); else if(dy>40) doSlide();
+    tsx=null;
+  }
+  field.addEventListener('touchstart', ts, {passive:true});
+  field.addEventListener('touchend', te, {passive:true});
+
+  const items = [];
+  const collectGeo = new THREE.SphereGeometry(0.32, 12, 12);
+  const obstacleGeo = new THREE.BoxGeometry(0.95, 0.95, 0.95);
+  const collectColors = [0xF3CE7F, 0x4C8FBF, 0xE2853F, 0xDCC6E8];
+  function obstacleChanceNow(elapsed){ return Math.min(0.4, 0.18 + elapsed*0.004); }
+  function speedNow(elapsed){ return Math.min(30, 13 + elapsed*0.28); }
+  function spawnEveryNow(elapsed){ return Math.max(0.5, 1.1 - elapsed*0.01); }
+  function spawnItem(elapsed){
+    const isObstacle = Math.random() < obstacleChanceNow(elapsed);
+    const l = Math.floor(Math.random()*3)-1;
+    let mesh;
+    if(isObstacle){
+      mesh = new THREE.Mesh(obstacleGeo, new THREE.MeshBasicMaterial({ color:0x7A5230 }));
+      mesh.userData.vertType = Math.random()<0.5 ? 'low' : 'high';
+      mesh.position.y = mesh.userData.vertType==='high' ? 1.7 : 0.47;
+    } else {
+      mesh = new THREE.Mesh(collectGeo, new THREE.MeshBasicMaterial({ color: collectColors[Math.floor(Math.random()*collectColors.length)] }));
+      mesh.position.y = 1.15;
+    }
+    mesh.position.x = laneX(l); mesh.position.z = -55;
+    mesh.userData.lane = l; mesh.userData.obstacle = isObstacle; mesh.userData.resolved = false; mesh.userData.pts = isObstacle?0:(1+Math.floor(Math.random()*3));
+    scene.add(mesh); items.push(mesh);
+  }
+  function updateHud3D(){
+    document.getElementById('mpScoreText').textContent = mpScore;
+    document.getElementById('mpTargetText').textContent = 'Best '+(mpProgress.endlessBest||0);
+    document.getElementById('mpScoreFill').style.width = Math.min(100, mpScore/Math.max(20, mpProgress.endlessBest||20)*100)+'%';
+  }
+  function clearItems(){ items.forEach(it=>scene.remove(it)); items.length=0; }
+
+  let elapsed=0, spawnAcc=0, stopped=false, raf=null, lastT=performance.now();
+  function loop(now){
+    if(stopped) return;
+    const dt = Math.min((now-lastT)/1000, 0.05); lastT = now;
+    if(mpRunning){
+      elapsed += dt; spawnAcc += dt;
+      if(spawnAcc >= spawnEveryNow(elapsed)){ spawnAcc = 0; spawnItem(elapsed); }
+    }
+    player.position.x += (laneX(lane) - player.position.x) * 0.22;
+    if(jumping){
+      jumpT += dt; const t = jumpT/0.5;
+      if(t>=1){ jumping=false; player.position.y = 1.5; player.scale.set(1.9,3.0,1); }
+      else { player.position.y = 1.5 + Math.sin(t*Math.PI)*1.35; }
+    } else if(sliding){
+      player.scale.set(1.9, 1.7, 1); player.position.y = 0.95;
+    } else {
+      player.scale.set(1.9, 3.0, 1); player.position.y = 1.5 + Math.sin(now/220)*0.05;
+    }
+    const speed = speedNow(elapsed);
+    for(let i=items.length-1;i>=0;i--){
+      const it = items[i];
+      it.position.z += speed*dt;
+      if(!it.userData.resolved && it.position.z > 3.4 && it.position.z < 4.6 && it.userData.lane===lane){
+        it.userData.resolved = true;
+        const avoided = it.userData.obstacle && ((it.userData.vertType==='low' && jumping) || (it.userData.vertType==='high' && sliding));
+        if(it.userData.obstacle && !avoided){
+          mpHadObstacleHit = true; mpPlayFail();
+          stopped = true; cancelAnimationFrame(raf); clearItems();
+          onDone();
+          return;
+        } else if(!it.userData.obstacle){
+          mpScore += it.userData.pts; updateHud3D(); mpPlayCollect(it.userData.pts);
+          scene.remove(it); items.splice(i,1); continue;
+        } else { scene.remove(it); items.splice(i,1); continue; }
+      }
+      if(it.position.z > 6){ scene.remove(it); items.splice(i,1); }
+    }
+    updateHud3D();
+    renderer.render(scene, camera);
+    raf = requestAnimationFrame(loop);
+  }
+  raf = requestAnimationFrame(loop);
+  function onResize(){
+    const nw = field.clientWidth||window.innerWidth, nh = field.clientHeight||window.innerHeight;
+    camera.aspect = nw/nh; camera.updateProjectionMatrix(); renderer.setSize(nw, nh);
+  }
+  window.addEventListener('resize', onResize);
+  mp3DState = { raf, renderer, resizeHandler: onResize, field, touchStart: ts, touchEnd: te };
+  return ()=>{
+    stopped = true;
+    ctrl.innerHTML = '';
+    mp3DDispose();
+  };
 }
 
 /* ---- Completion ---- */
