@@ -2565,14 +2565,14 @@ const MP_STORY_PANELS = [
 ];
 const MP_LEVELS = [
   { id:0, title:"The Peaceful Streets of Nabadwip", bg:'nabadwip_streets', type:'bubble', objective:"Match 3 or more",
-    colors:['🪷','🌸','🔔','💐','🍃'], gridW:6, gridH:7, target:600, movesCap:22 },
+    colors:['🪷','🌸','🔔','💐','🍃'], gridW:6, gridH:7, target:1400, movesCap:38 },
   { id:1, title:"Meeting Jagai and Madhai", bg:'market', type:'runner', objective:"Survive the streets",
-    duration:70, items:[{emoji:'❤️',pts:2},{emoji:'🪷',pts:1}], obstacles:['🪨','🪵','🏺'], jumpTypes:['low'], slideTypes:['high'] },
+    duration:150, items:[{emoji:'❤️',pts:2},{emoji:'🪷',pts:1}], obstacles:['🪨','🪵','🏺'], jumpTypes:['low'], slideTypes:['high'] },
   { id:2, title:"Lord Nityananda Approaches", bg:'riverside', type:'checkpoint', objective:"Reach the temple",
-    checkpoints:4, items:[{emoji:'🌿',pts:1},{emoji:'💐',pts:2}], obstacles:['🪨','🛒','🏺'],
+    checkpoints:8, items:[{emoji:'🌿',pts:1},{emoji:'💐',pts:2}], obstacles:['🪨','🛒','🏺'],
     scenery:['riverside','market','temple','temple2'] },
   { id:3, title:"Mercy and Transformation", bg:'temple', type:'bubble', objective:"Advanced match",
-    colors:['🪷','🌸','🔔','💐','🍃','⭐'], gridW:6, gridH:8, target:900, movesCap:26, rainbowChance:0.06 },
+    colors:['🪷','🌸','🔔','💐','🍃','⭐'], gridW:6, gridH:8, target:2200, movesCap:46, rainbowChance:0.06 },
   { id:4, title:"Infinite Sankirtan Journey", bg:'temple2', type:'endless', objective:"Run forever",
     items:[{emoji:'❤️',pts:2},{emoji:'🪷',pts:1},{emoji:'⭐',pts:3},{emoji:'🔔',pts:2},{emoji:'🍃',pts:1}], obstacles:['🪨','🪵','🏺','🛒'],
     scenery:['nabadwip_streets','temple','riverside','market','temple2','sunset','night'] }
@@ -2998,11 +2998,11 @@ function openMpCharSelect(){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
       <div class="mp-stage-card" id="mpPickJagai" style="height:220px;">
-        <img src="${MP}characters/jagai_after2.png" style="object-position:center 10%;">
+        <img src="${MP}characters/jagai_hero.png" style="object-position:center 15%;">
         <div class="mp-stage-overlay"><div class="mp-stage-name">Jagai</div></div>
       </div>
       <div class="mp-stage-card" id="mpPickMadhai" style="height:220px;">
-        <img src="${MP}characters/madhai_after2.png" style="object-position:center 10%;">
+        <img src="${MP}characters/madhai_hero.png" style="object-position:center 15%;">
         <div class="mp-stage-overlay"><div class="mp-stage-name">Madhai</div></div>
       </div>
     </div>
@@ -3206,7 +3206,10 @@ function mpRun3DEndless(characterKey, onDone){
       riverTex.offset.y -= dt*0.6;
       groundTex.offset.y -= dt*(ph.speed*0.02);
     }
-    playerGroup.position.x += (laneX(lane) - playerGroup.position.x) * Math.min(1, dt*10);
+    playerGroup.position.x += (laneX(lane) - playerGroup.position.x) * Math.min(1, dt*8);
+    // slight banking lean into the direction of the current lane change, for polish
+    const leanTarget = (laneX(lane) - playerGroup.position.x) * -0.25;
+    playerGroup.rotation.z += (leanTarget - playerGroup.rotation.z) * Math.min(1, dt*8);
 
     if(!onGround){
       jumpVY -= 18*dt;
@@ -3216,13 +3219,27 @@ function mpRun3DEndless(characterKey, onDone){
     if(mpRunning){
       runTime += dt*ph.speed*1.4;
       if(onGround && !sliding){
-        legL.rotation.x = Math.sin(runTime)*0.7; legR.rotation.x = Math.sin(runTime+Math.PI)*0.7;
-        armL.rotation.x = Math.sin(runTime+Math.PI)*0.5; armR.rotation.x = Math.sin(runTime)*0.5;
-        body.position.y = 0.75 + Math.abs(Math.sin(runTime))*0.03;
+        legL.rotation.x = Math.sin(runTime)*0.85; legR.rotation.x = Math.sin(runTime+Math.PI)*0.85;
+        armL.rotation.x = Math.sin(runTime+Math.PI)*0.6; armR.rotation.x = Math.sin(runTime)*0.6;
+        body.position.y = 0.75 + Math.abs(Math.sin(runTime))*0.04;
+        body.rotation.x = 0.06; // slight forward lean while running
       } else if(!onGround){
-        legL.rotation.x = 0.3; legR.rotation.x = -0.3;
+        legL.rotation.x = 0.35; legR.rotation.x = -0.35;
+        body.rotation.x = -0.05;
+      } else {
+        body.rotation.x = 0;
       }
     }
+
+    // Real chase camera: tracks the player's lane (x) and jump/slide height (y)
+    // every frame, always staying directly behind and above, and always
+    // looking at the player — this is what keeps the runner centered and
+    // fully visible through lane changes, jumps, and slides.
+    const camTargetX = playerGroup.position.x;
+    const camTargetY = 3.3 + playerGroup.position.y*0.35 - (sliding?0.3:0);
+    camera.position.x += (camTargetX - camera.position.x) * Math.min(1, dt*7);
+    camera.position.y += (camTargetY - camera.position.y) * Math.min(1, dt*7);
+    camera.lookAt(playerGroup.position.x, 1.3 + playerGroup.position.y*0.5, playerGroup.position.z - 9);
 
     for(let i=items.length-1;i>=0;i--){
       const it = items[i];

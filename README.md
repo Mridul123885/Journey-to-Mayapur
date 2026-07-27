@@ -3,6 +3,28 @@
 Complete Capacitor 6 Android project. Builds entirely on GitHub's servers —
 no Android Studio needed anywhere.
 
+## 🎥 Stage 5 camera fixed — this was a real bug, now a genuine chase camera
+
+Root cause of the visibility/lane-switch complaints: the camera was
+**completely static** — it never actually tracked the player's position at
+all, so moving between lanes (or jumping/sliding) visually pushed the
+character toward the edge of frame or out of it. Fixed with a real chase
+camera that follows the player's lane (x) and jump/slide height (y) every
+single frame, always staying directly behind and above and always looking
+at the player — the character now stays centered and fully visible through
+every lane change, jump, and slide. Added a subtle banking lean during
+lane changes and a touch more running-animation amplitude for polish.
+
+**Stage length roughly doubled or more across every finite stage** — Stage
+1 (bubble) target 600→1400 with more moves, Stage 2 (runner) 70s→150s,
+Stage 3 (checkpoint) 4→8 checkpoints, Stage 4 (advanced bubble)
+900→2200 with more moves. Stage 5 was already a true endless run with no
+finish line.
+
+Character selection is unchanged — Jagai/Madhai artwork, same as before
+this whole 3D-character conversation. Gameplay itself uses the procedural
+3D humanoid, exactly as you asked earlier in this thread.
+
 ## 🏃‍♂️ Stage 5 — real 3D humanoid character, river environment, wave-based difficulty
 
 **Stage 5 (Infinite Sankirtan Journey)** runs on a genuine Three.js 3D
