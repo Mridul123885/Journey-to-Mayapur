@@ -3,6 +3,18 @@
 Complete Capacitor 6 Android project. Builds entirely on GitHub's servers —
 no Android Studio needed anywhere.
 
+## 📍 Stage 5: character repositioned to proper endless-runner framing (nothing else touched)
+
+Scoped exactly to the ask: the character sat too far back/small in frame.
+Fixed by moving the character closer to the camera and lowering the
+camera to shoulder height (2.6 vs the old 3.3), so the full body now reads
+clearly in the lower-middle of the screen, Temple Run/Subway Surfers
+style. The collision-detection distances were shifted by the same amount
+as the character moved, so timing/difficulty/obstacle behavior is
+unchanged — only where things visually sit on screen changed. Camera
+tracking logic, FOV, road, river, environment, obstacles, stage length,
+UI, controls, story, and music are all untouched.
+
 ## 🎥 Stage 5 camera fixed — this was a real bug, now a genuine chase camera
 
 Root cause of the visibility/lane-switch complaints: the camera was
