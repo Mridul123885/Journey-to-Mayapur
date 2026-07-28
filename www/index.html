@@ -3054,8 +3054,8 @@ function mpRun3DEndless(characterKey, onDone){
   scene.fog = new THREE.Fog(0xBFE3F5, 16, 55);
   const w = field.clientWidth||window.innerWidth, h = field.clientHeight||window.innerHeight;
   const camera = new THREE.PerspectiveCamera(58, w/h, 0.1, 200);
-  camera.position.set(0, 2.6, 6.3);
-  camera.lookAt(0, 1.5, -6);
+  camera.position.set(0, 3.4, 5.5);
+  camera.lookAt(0, 1.2, -3);
   const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
   renderer.setSize(w, h);
   renderer.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;z-index:3;';
@@ -3127,7 +3127,7 @@ function mpRun3DEndless(characterKey, onDone){
   armL.position.set(-0.46,0.95,0); playerGroup.add(armL);
   const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.09,0.55,8), armMat);
   armR.position.set(0.46,0.95,0); playerGroup.add(armR);
-  playerGroup.position.set(0, 0, 5.0);
+  playerGroup.position.set(0, 0, 0);
   scene.add(playerGroup);
 
   let lane = 0, jumpVY = 0, onGround = true, sliding = false, slideTimer = null, runTime = 0;
@@ -3236,16 +3236,16 @@ function mpRun3DEndless(characterKey, onDone){
     // looking at the player — this is what keeps the runner centered and
     // fully visible through lane changes, jumps, and slides.
     const camTargetX = playerGroup.position.x;
-    const camTargetY = 2.6 + playerGroup.position.y*0.35 - (sliding?0.3:0);
-    camera.position.x += (camTargetX - camera.position.x) * Math.min(1, dt*7);
-    camera.position.y += (camTargetY - camera.position.y) * Math.min(1, dt*7);
-    camera.lookAt(playerGroup.position.x, 1.5 + playerGroup.position.y*0.5, playerGroup.position.z - 9);
+    const camTargetY = 3.4 + playerGroup.position.y*0.35 - (sliding?0.3:0);
+    camera.position.x += (camTargetX - camera.position.x) * Math.min(1, dt*6);
+    camera.position.y += (camTargetY - camera.position.y) * Math.min(1, dt*6);
+    camera.lookAt(playerGroup.position.x, 1.2, playerGroup.position.z - 3);
 
     for(let i=items.length-1;i>=0;i--){
       const it = items[i];
       it.position.z += ph.speed*dt;
       it.rotation.y += dt*2;
-      if(!it.userData.resolved && it.position.z > 4.2 && it.position.z < 5.4 && it.userData.lane===lane){
+      if(!it.userData.resolved && Math.abs(it.position.z - playerGroup.position.z) < 0.6 && it.userData.lane===lane){
         it.userData.resolved = true;
         const avoided = it.userData.obstacle && ((it.userData.vertType==='low' && !onGround) || (it.userData.vertType==='high' && sliding));
         if(it.userData.obstacle && !avoided){
@@ -3258,7 +3258,7 @@ function mpRun3DEndless(characterKey, onDone){
           scene.remove(it); items.splice(i,1); continue;
         } else { scene.remove(it); items.splice(i,1); continue; }
       }
-      if(it.position.z > 6.8){ scene.remove(it); items.splice(i,1); }
+      if(it.position.z > 4){ scene.remove(it); items.splice(i,1); }
     }
     updateHud3D();
     renderer.render(scene, camera);

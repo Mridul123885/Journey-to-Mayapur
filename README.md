@@ -3,6 +3,23 @@
 Complete Capacitor 6 Android project. Builds entirely on GitHub's servers —
 no Android Studio needed anywhere.
 
+## 🎯 Stage 5: character now uses the exact reference implementation's camera/movement values
+
+Found the real cause of the "attached to camera" feeling: the previous
+positioning fix moved the character to only **1.3 units** from the
+camera. The Journey game's proven reference implementation keeps a
+**5.5-unit** follow distance (camera at world Z 5.5, character at world Z
+0, camera height 3.4, lookAt height 1.2) — a much more generous
+third-person following distance. Stage 5 now uses those exact same
+values, the same camera-lerp speed (dt×6), and the same relative-distance
+collision check the reference uses, instead of my own guessed numbers.
+The character is a real world-space `THREE.Group` object the whole
+time — it never was screen-space — but the camera being too close and
+tightly matched made it read that way. This should now feel identical in
+behavior to the Journey game's own runner, just with different
+geometry/scenery. Road, river, environment, obstacles, UI, controls,
+stage length, story, and music are all untouched.
+
 ## 📍 Stage 5: character repositioned to proper endless-runner framing (nothing else touched)
 
 Scoped exactly to the ask: the character sat too far back/small in frame.
