@@ -1299,14 +1299,14 @@ async function markStoryRead(i){
     await sSet('journey:storiesRead', readStories);
   }
 }
+let currentStoryLang = 'en';
 function openIntro(i){
   curLevelIdx = i;
   currentStoryLang = 'en';
   const lv = LEVELS[i];
   document.getElementById('introPhoto').src = PHOTOS[lv.img];
   document.getElementById('introMeta').textContent = `Chapter ${i+1} of 13 — ${lv.title}` + (lv.infinite ? ' · Endless — no finish line' : '');
-  let currentStoryLang = 'en';
-function renderStoryText(lv){
+  function renderStoryText(lv){
   const text = currentStoryLang==='bn' ? (lv.bengali||lv.story) : currentStoryLang==='hi' ? (lv.hindi||lv.story) : lv.story;
   document.getElementById('introSentences').innerHTML = `<p style="margin:0;">${escapeHtml(text)}</p>`;
 }
