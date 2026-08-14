@@ -557,16 +557,17 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{ outline:2px sol
     </div>
     <img class="intro-photo" id="introPhoto" src="">
     <div class="intro-meta" id="introMeta"></div>
+    <div id="introLangRow" style="display:flex;gap:8px;margin-top:14px;">
+        <button class="lang-btn active" data-lang="en">English</button>
+        <button class="lang-btn" data-lang="bn">বাংলা</button>
+        <button class="lang-btn" data-lang="hi">हिंदी</button>
+      </div>
     <div class="storybook-panel fade-in-story" id="introStorybook">
       <div class="storybook-label">The Story</div>
       <div class="intro-sentences" id="introSentences"></div>
       <div class="storybook-label" style="margin-top:16px;">The Lesson</div>
       <div class="storybook-lesson" id="introLesson"></div>
-      <div id="introLangRow" style="display:flex;gap:8px;margin-top:14px;">
-        <button class="lang-btn active" data-lang="en">English</button>
-        <button class="lang-btn" data-lang="bn">বাংলা</button>
-        <button class="lang-btn" data-lang="hi">हिंदी</button>
-      </div>
+      
     </div>
     <div class="panel" style="margin-bottom:18px;">
       <h2 style="font-size:14px;">Customize Your Devotee</h2>
@@ -1301,16 +1302,17 @@ async function markStoryRead(i){
 }
 
 let currentStoryLang = 'en';
+function renderStoryText(lv){
+  const text = currentStoryLang==='bn' ? (lv.bengali||lv.story) : currentStoryLang==='hi' ? (lv.hindi||lv.story) : lv.story;
+  document.getElementById('introSentences').innerHTML = `<p style="margin:0;">${escapeHtml(text)}</p>`;
+}
 function openIntro(i){
   curLevelIdx = i;
   currentStoryLang = 'en';
   const lv = LEVELS[i];
   document.getElementById('introPhoto').src = PHOTOS[lv.img];
   document.getElementById('introMeta').textContent = `Chapter ${i+1} of 13 — ${lv.title}` + (lv.infinite ? ' · Endless — no finish line' : '');
-  function renderStoryText(lv){
-  const text = currentStoryLang==='bn' ? (lv.bengali||lv.story) : currentStoryLang==='hi' ? (lv.hindi||lv.story) : lv.story;
-  document.getElementById('introSentences').innerHTML = `<p style="margin:0;">${escapeHtml(text)}</p>`;
-}
+  
 renderStoryText(lv);
   document.getElementById('introLesson').textContent = lv.lesson;
   document.getElementById('mainNav').style.display='none';
